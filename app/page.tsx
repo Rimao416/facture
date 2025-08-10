@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useCallback } from 'react';
 import { Plus, Trash2, Download, Calculator } from 'lucide-react';
+import { generateInvoicePDF } from './utils/pdfGenerator';
 
 // Types
 interface InvoiceItem {
@@ -141,8 +142,7 @@ const InvoiceGenerator: React.FC = () => {
     };
 
     // Simuler la génération PDF (dans une vraie app, utilisez jsPDF)
-    console.log('Génération PDF:', invoiceData);
-    alert('PDF généré ! (Voir la console pour les données)');
+   generateInvoicePDF(invoiceData);
   };
 
   return (
@@ -165,7 +165,7 @@ const InvoiceGenerator: React.FC = () => {
           {/* Informations entreprise */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Informations de l'entreprise</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Informations de l&apos;entreprise</h2>
               <div className="space-y-4">
                 <input
                   type="text"
