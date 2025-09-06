@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useCallback } from 'react';
 import { Plus, Trash2, Download, Calendar, DollarSign, Building } from 'lucide-react';
+import { generateInvoicePDF } from './utils/pdfGenerator';
 
 // Types (compatibles avec votre pdfGenerator)
 interface InvoiceItem {
@@ -48,10 +49,6 @@ interface InvoiceData {
 }
 
 // Fonction de génération PDF simulée
-const generateInvoicePDF = (data: InvoiceData) => {
-  console.log('Génération PDF avec les données:', data);
-  alert('PDF généré avec succès !');
-};
 
 // Utilitaires
 const calculateAmount = (quantity: number, unitPrice: number): number => {
