@@ -2,7 +2,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { InvoiceData } from '../types/invoice';
-import { formatCurrency } from './invoiceUtils';
 
 // Déclaration de module TypeScript pour les types
 declare module 'jspdf' {
@@ -12,6 +11,16 @@ declare module 'jspdf' {
     };
   }
 }
+
+interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+}
+
+const formatCurrency = (amount: number, currency: Currency): string => {
+  return `${amount.toLocaleString('fr-TN', { minimumFractionDigits: 3 })} ${currency.code}`;
+};
 
 export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
   const doc = new jsPDF();
@@ -26,18 +35,18 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
   doc.setFont('helvetica', 'bold');
   doc.text('SL', 32.5, 35, { align: 'center' });
  
-  // Titre facture
+  // Titre facture avec nouveau format
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text(`DEVIS - ${invoiceData.company.name}`, 55, 35);
+  doc.text(`Factures-SL-${invoiceData.invoiceNumber}`, 55, 35);
  
-  // Informations de date
+  // Informations de date (modifiables)
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(`Date de facturation: ${invoiceData.invoiceDate}`, 55, 45);
-  doc.text(`Échéance: avant le ${invoiceData.dueDate}`, 55, 52);
+  doc.text(`Échéance: ${invoiceData.dueDate}`, 55, 52);
  
   // Informations de l'entreprise (gauche)
   doc.setTextColor(0, 0, 0);
@@ -67,8 +76,8 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
     item.date,
     item.quantity.toString(),
     item.unit,
-    formatCurrency(item.unitPrice),
-    formatCurrency(item.amount)
+    formatCurrency(item.unitPrice, invoiceData.currency),
+    formatCurrency(item.amount, invoiceData.currency)
   ]);
  
   // Utilisation correcte d'autoTable
@@ -104,7 +113,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
   // Position Y après le tableau
   const finalY = doc.lastAutoTable.finalY + 20;
  
-  // Totaux
+  // Totaux avec devise personnalisée
   const totalsX = 130;
  
   doc.setFontSize(10);
@@ -112,12 +121,12 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
  
   // Sous-total
   doc.text('Sous-total TTC', totalsX, finalY);
-  doc.text(formatCurrency(invoiceData.subtotal), totalsX + 50, finalY, { align: 'right' });
+  doc.text(formatCurrency(invoiceData.subtotal, invoiceData.currency), totalsX + 50, finalY, { align: 'right' });
  
   // Remise
   if (invoiceData.discount > 0) {
     doc.text(`Remise (${invoiceData.discount}%)`, totalsX, finalY + 8);
-    doc.text(formatCurrency(invoiceData.discountAmount), totalsX + 50, finalY + 8, { align: 'right' });
+    doc.text(formatCurrency(invoiceData.discountAmount, invoiceData.currency), totalsX + 50, finalY + 8, { align: 'right' });
   }
  
   // Net à payer
@@ -125,7 +134,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
   doc.setFontSize(12);
   const netY = invoiceData.discount > 0 ? finalY + 16 : finalY + 8;
   doc.text('Net à payer', totalsX, netY);
-  doc.text(formatCurrency(invoiceData.total), totalsX + 50, netY, { align: 'right' });
+  doc.text(formatCurrency(invoiceData.total, invoiceData.currency), totalsX + 50, netY, { align: 'right' });
  
   // Signature
   const signatureY = netY + 30;
@@ -134,7 +143,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
   doc.text(invoiceData.client.name, 20, signatureY);
   doc.text(`${invoiceData.client.name} (${invoiceData.invoiceDate})`, 20, signatureY + 5);
  
-  // Pied de page
+  // Pied de page simplifié (sans adresse redondante)
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
   doc.text('Notre rapidité à vous satisfaire équivaut à la célérité', 105, 270, { align: 'center' });
@@ -142,8 +151,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
  
   doc.setFont('helvetica', 'bold');
   doc.text(invoiceData.company.name.toUpperCase(), 105, 290, { align: 'center' });
-  doc.text(invoiceData.company.address + ' ' + invoiceData.company.city, 105, 297, { align: 'center' });
  
-  // Télécharger le PDF
-  doc.save(`devis-${invoiceData.invoiceNumber}.pdf`);
+  // Télécharger le PDF avec le nouveau nom
+  doc.save(`Factures-${invoiceData.invoiceNumber}.pdf`);
 };

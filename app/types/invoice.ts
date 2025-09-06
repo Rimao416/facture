@@ -23,6 +23,12 @@ export interface ClientInfo {
   company: string;
 }
 
+export interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+}
+
 export interface InvoiceData {
   invoiceNumber: string;
   invoiceDate: string;
@@ -34,6 +40,7 @@ export interface InvoiceData {
   discount: number;
   discountAmount: number;
   total: number;
+  currency: Currency;
 }
 
 export interface InvoiceFormData {
@@ -41,4 +48,7 @@ export interface InvoiceFormData {
   client: ClientInfo;
   items: Omit<InvoiceItem, 'id' | 'amount'>[];
   discount: number;
+  currency: Currency;
+  invoiceDate: string;
+  dueDate: string;
 }

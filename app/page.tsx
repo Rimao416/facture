@@ -1,9 +1,9 @@
 "use client"
 import React, { useState, useCallback } from 'react';
-import { Plus, Trash2, Download, Calculator } from 'lucide-react';
+import { Plus, Trash2, Download, Calendar, DollarSign, Building } from 'lucide-react';
 import { generateInvoicePDF } from './utils/pdfGenerator';
 
-// Types
+// Types (compatibles avec votre pdfGenerator)
 interface InvoiceItem {
   id: string;
   description: string;
@@ -28,6 +28,12 @@ interface ClientInfo {
   company: string;
 }
 
+interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+}
+
 interface InvoiceData {
   invoiceNumber: string;
   invoiceDate: string;
@@ -39,7 +45,11 @@ interface InvoiceData {
   discount: number;
   discountAmount: number;
   total: number;
+  currency: Currency;
 }
+
+// Fonction de génération PDF simulée (remplacez par votre import)
+
 
 // Utilitaires
 const calculateAmount = (quantity: number, unitPrice: number): number => {
@@ -50,8 +60,8 @@ const calculateSubtotal = (items: InvoiceItem[]): number => {
   return items.reduce((sum, item) => sum + item.amount, 0);
 };
 
-const formatCurrency = (amount: number): string => {
-  return `${amount.toLocaleString('fr-TN', { minimumFractionDigits: 3 })} TND`;
+const formatCurrency = (amount: number, currency: Currency): string => {
+  return `${amount.toLocaleString('fr-TN', { minimumFractionDigits: 3 })} ${currency.code}`;
 };
 
 const formatDate = (date: Date): string => {
@@ -60,6 +70,19 @@ const formatDate = (date: Date): string => {
     month: '2-digit',
     year: 'numeric'
   });
+};
+
+const formatDateForInput = (dateString: string): string => {
+  const parts = dateString.split('/');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateString;
+};
+
+const formatDateFromInput = (dateString: string): string => {
+  const date = new Date(dateString);
+  return formatDate(date);
 };
 
 const generateInvoiceNumber = (): string => {
@@ -71,6 +94,20 @@ const generateInvoiceNumber = (): string => {
 };
 
 const InvoiceGenerator: React.FC = () => {
+  // Devises disponibles
+  const [availableCurrencies] = useState<Currency[]>([
+    { code: 'TND', symbol: 'د.ت', name: 'Dinar Tunisien' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'USD', symbol: '$', name: 'Dollar US' },
+    { code: 'MAD', symbol: 'د.م.', name: 'Dirham Marocain' },
+    { code: 'CAD', symbol: 'C$', name: 'Dollar Canadien' },
+    { code: 'GBP', symbol: '£', name: 'Livre Sterling' }
+  ]);
+
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(availableCurrencies[0]);
+  const [customCurrency, setCustomCurrency] = useState<string>('');
+  const [showCustomCurrency, setShowCustomCurrency] = useState(false);
+
   const [company, setCompany] = useState<CompanyInfo>({
     name: 'SINAI DESIGN',
     contact: 'Christian LUBOYA kasengulu',
@@ -84,6 +121,10 @@ const InvoiceGenerator: React.FC = () => {
     name: 'Stéphane TSHIKADI',
     company: 'Betterchoice firm'
   });
+
+  // Dates modifiables
+  const [invoiceDate, setInvoiceDate] = useState<string>(formatDate(new Date()));
+  const [dueDate, setDueDate] = useState<string>(formatDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)));
 
   const [items, setItems] = useState<Omit<InvoiceItem, 'id' | 'amount'>[]>([
     {
@@ -117,6 +158,19 @@ const InvoiceGenerator: React.FC = () => {
     ));
   }, []);
 
+  const addCustomCurrency = () => {
+    if (customCurrency.trim()) {
+      const newCurrency: Currency = {
+        code: customCurrency.toUpperCase(),
+        symbol: customCurrency.toUpperCase(),
+        name: `Devise personnalisée (${customCurrency.toUpperCase()})`
+      };
+      setSelectedCurrency(newCurrency);
+      setCustomCurrency('');
+      setShowCustomCurrency(false);
+    }
+  };
+
   const processedItems: InvoiceItem[] = items.map((item, index) => ({
     ...item,
     id: `item-${index + 1}`,
@@ -130,19 +184,20 @@ const InvoiceGenerator: React.FC = () => {
   const generatePDF = () => {
     const invoiceData: InvoiceData = {
       invoiceNumber: generateInvoiceNumber(),
-      invoiceDate: formatDate(new Date()),
-      dueDate: formatDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)),
+      invoiceDate,
+      dueDate,
       company,
       client,
       items: processedItems,
       subtotal,
       discount,
       discountAmount,
-      total
+      total,
+      currency: selectedCurrency
     };
 
-    // Simuler la génération PDF (dans une vraie app, utilisez jsPDF)
-   generateInvoicePDF(invoiceData);
+    // Appel à votre fonction de génération PDF
+    generateInvoicePDF(invoiceData);
   };
 
   return (
@@ -155,17 +210,94 @@ const InvoiceGenerator: React.FC = () => {
               <span className="text-xl font-bold">SL</span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Générateur de Devis</h1>
-              <p className="text-blue-100">Créez vos devis professionnels</p>
+              <h1 className="text-2xl font-bold">Générateur de Factures</h1>
+              <p className="text-blue-100">Créez vos factures professionnelles</p>
             </div>
           </div>
         </div>
 
         <div className="p-6 space-y-8">
-          {/* Informations entreprise */}
+          {/* Section Dates et Devise */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50 p-4 rounded-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Calendar className="inline w-4 h-4 mr-1" />
+                Date de facturation
+              </label>
+              <input
+                type="date"
+                value={formatDateForInput(invoiceDate)}
+                onChange={(e) => setInvoiceDate(formatDateFromInput(e.target.value))}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+<label className="block text-sm font-medium text-gray-700 mb-2">
+  <Calendar className="inline w-4 h-4 mr-1" />
+  {`Date d'échéance`}
+</label>
+              <input
+                type="date"
+                value={formatDateForInput(dueDate)}
+                onChange={(e) => setDueDate(formatDateFromInput(e.target.value))}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <DollarSign className="inline w-4 h-4 mr-1" />
+                Devise
+              </label>
+              <div className="flex space-x-2">
+                <select
+                  value={selectedCurrency.code}
+                  onChange={(e) => {
+                    const currency = availableCurrencies.find(c => c.code === e.target.value);
+                    if (currency) setSelectedCurrency(currency);
+                  }}
+                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {availableCurrencies.map(currency => (
+                    <option key={currency.code} value={currency.code}>
+                      {currency.code} - {currency.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowCustomCurrency(!showCustomCurrency)}
+                  className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                  title="Ajouter une devise personnalisée"
+                >
+                  +
+                </button>
+              </div>
+              {showCustomCurrency && (
+                <div className="mt-2 flex space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Code devise (ex: XOF)"
+                    value={customCurrency}
+                    onChange={(e) => setCustomCurrency(e.target.value)}
+                    className="flex-1 p-2 border border-gray-300 rounded text-sm"
+                  />
+                  <button
+                    onClick={addCustomCurrency}
+                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Informations entreprise et client */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Informations de l&apos;entreprise</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <Building className="w-5 h-5 mr-2" />
+                Informations de l&apos;entreprise
+              </h2>
               <div className="space-y-4">
                 <input
                   type="text"
@@ -212,7 +344,6 @@ const InvoiceGenerator: React.FC = () => {
               </div>
             </div>
 
-            {/* Informations client */}
             <div>
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Informations du client</h2>
               <div className="space-y-4">
@@ -275,11 +406,8 @@ const InvoiceGenerator: React.FC = () => {
                       <td className="p-3">
                         <input
                           type="date"
-                          value={item.date.split('/').reverse().join('-')}
-                          onChange={(e) => {
-                            const date = new Date(e.target.value);
-                            updateItem(index, 'date', formatDate(date));
-                          }}
+                          value={formatDateForInput(item.date)}
+                          onChange={(e) => updateItem(index, 'date', formatDateFromInput(e.target.value))}
                           className="w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                         />
                       </td>
@@ -318,7 +446,7 @@ const InvoiceGenerator: React.FC = () => {
                         />
                       </td>
                       <td className="p-3 text-right font-semibold text-gray-800">
-                        {formatCurrency(calculateAmount(item.quantity, item.unitPrice))}
+                        {formatCurrency(calculateAmount(item.quantity, item.unitPrice), selectedCurrency)}
                       </td>
                       <td className="p-3 text-center">
                         <button
@@ -338,10 +466,10 @@ const InvoiceGenerator: React.FC = () => {
 
           {/* Totaux */}
           <div className="flex justify-end">
-            <div className="w-80 space-y-4">
+            <div className="w-80 space-y-4 bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Sous-total TTC:</span>
-                <span className="font-semibold text-gray-800">{formatCurrency(subtotal)}</span>
+                <span className="font-semibold text-gray-800">{formatCurrency(subtotal, selectedCurrency)}</span>
               </div>
               
               <div className="flex justify-between items-center">
@@ -358,14 +486,14 @@ const InvoiceGenerator: React.FC = () => {
                   />
                   <span className="text-gray-700">%</span>
                 </div>
-                <span className="font-semibold text-gray-800">{formatCurrency(discountAmount)}</span>
+                <span className="font-semibold text-gray-800">{formatCurrency(discountAmount, selectedCurrency)}</span>
               </div>
 
               <hr className="border-gray-300" />
               
               <div className="flex justify-between items-center text-lg font-bold">
                 <span className="text-gray-800">Net à payer:</span>
-                <span className="text-blue-600">{formatCurrency(total)}</span>
+                <span className="text-blue-600">{formatCurrency(total, selectedCurrency)}</span>
               </div>
             </div>
           </div>
