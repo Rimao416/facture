@@ -39,7 +39,7 @@ export const generateInvoicePDF = (invoiceData: InvoiceData): void => {
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Factures-SL-${invoiceData.invoiceNumber}`, 55, 35);
+  doc.text(`Factures-${invoiceData.invoiceNumber}`, 55, 35);
  
   // Informations de date (modifiables)
   doc.setFontSize(10);

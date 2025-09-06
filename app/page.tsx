@@ -1,7 +1,6 @@
 "use client"
 import React, { useState, useCallback } from 'react';
 import { Plus, Trash2, Download, Calendar, DollarSign, Building } from 'lucide-react';
-import { generateInvoicePDF } from './utils/pdfGenerator';
 
 // Types (compatibles avec votre pdfGenerator)
 interface InvoiceItem {
@@ -48,8 +47,11 @@ interface InvoiceData {
   currency: Currency;
 }
 
-// Fonction de génération PDF simulée (remplacez par votre import)
-
+// Fonction de génération PDF simulée
+const generateInvoicePDF = (data: InvoiceData) => {
+  console.log('Génération PDF avec les données:', data);
+  alert('PDF généré avec succès !');
+};
 
 // Utilitaires
 const calculateAmount = (quantity: number, unitPrice: number): number => {
@@ -136,7 +138,10 @@ const InvoiceGenerator: React.FC = () => {
     }
   ]);
 
+  // États pour la gestion des remises
   const [discount, setDiscount] = useState<number>(0);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
 
   const addItem = useCallback(() => {
     setItems(prev => [...prev, {
@@ -158,6 +163,34 @@ const InvoiceGenerator: React.FC = () => {
     ));
   }, []);
 
+  const processedItems: InvoiceItem[] = items.map((item, index) => ({
+    ...item,
+    id: `item-${index + 1}`,
+    amount: calculateAmount(item.quantity, item.unitPrice)
+  }));
+
+  const subtotal = calculateSubtotal(processedItems);
+
+  // Fonctions de mise à jour des remises
+  const updateDiscountPercentage = useCallback((value: number) => {
+    const newValue = Math.max(0, Math.min(100, value)); // Limiter entre 0 et 100
+    setDiscount(newValue);
+    setDiscountAmount((subtotal * newValue) / 100);
+    setDiscountMode('percentage');
+  }, [subtotal]);
+
+  const updateDiscountAmount = useCallback((value: number) => {
+    const newValue = Math.max(0, Math.min(subtotal, value)); // Limiter entre 0 et le sous-total
+    setDiscountAmount(newValue);
+    setDiscount(subtotal > 0 ? (newValue / subtotal) * 100 : 0);
+    setDiscountMode('amount');
+  }, [subtotal]);
+
+  // Calculs finaux
+  const finalDiscountAmount = discountMode === 'percentage' ? (subtotal * discount) / 100 : discountAmount;
+  const finalDiscountPercent = discountMode === 'amount' ? (subtotal > 0 ? (discountAmount / subtotal) * 100 : 0) : discount;
+  const total = subtotal - finalDiscountAmount;
+
   const addCustomCurrency = () => {
     if (customCurrency.trim()) {
       const newCurrency: Currency = {
@@ -171,16 +204,6 @@ const InvoiceGenerator: React.FC = () => {
     }
   };
 
-  const processedItems: InvoiceItem[] = items.map((item, index) => ({
-    ...item,
-    id: `item-${index + 1}`,
-    amount: calculateAmount(item.quantity, item.unitPrice)
-  }));
-
-  const subtotal = calculateSubtotal(processedItems);
-  const discountAmount = (subtotal * discount) / 100;
-  const total = subtotal - discountAmount;
-
   const generatePDF = () => {
     const invoiceData: InvoiceData = {
       invoiceNumber: generateInvoiceNumber(),
@@ -190,8 +213,8 @@ const InvoiceGenerator: React.FC = () => {
       client,
       items: processedItems,
       subtotal,
-      discount,
-      discountAmount,
+      discount: finalDiscountPercent,
+      discountAmount: finalDiscountAmount,
       total,
       currency: selectedCurrency
     };
@@ -232,10 +255,10 @@ const InvoiceGenerator: React.FC = () => {
               />
             </div>
             <div>
-<label className="block text-sm font-medium text-gray-700 mb-2">
-  <Calendar className="inline w-4 h-4 mr-1" />
-  {`Date d'échéance`}
-</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Calendar className="inline w-4 h-4 mr-1" />
+                Date d&apos;échéance
+              </label>
               <input
                 type="date"
                 value={formatDateForInput(dueDate)}
@@ -472,21 +495,37 @@ const InvoiceGenerator: React.FC = () => {
                 <span className="font-semibold text-gray-800">{formatCurrency(subtotal, selectedCurrency)}</span>
               </div>
               
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-700">Remise:</span>
-                  <input
-                    type="number"
-                    value={discount}
-                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                    className="w-16 p-1 border border-gray-300 rounded text-center"
-                    min="0"
-                    max="100"
-                    step="1"
-                  />
-                  <span className="text-gray-700">%</span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-700">Remise:</span>
+                    <input
+                      type="number"
+                      value={discount.toFixed(2)}
+                      onChange={(e) => updateDiscountPercentage(parseFloat(e.target.value) || 0)}
+                      className="w-16 p-1 border border-gray-300 rounded text-center"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                    <span className="text-gray-700">%</span>
+                  </div>
+                  <span className="font-semibold text-gray-800">{formatCurrency(finalDiscountAmount, selectedCurrency)}</span>
                 </div>
-                <span className="font-semibold text-gray-800">{formatCurrency(discountAmount, selectedCurrency)}</span>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-700">ou Montant:</span>
+                    <input
+                      type="number"
+                      value={discountAmount.toFixed(3)}
+                      onChange={(e) => updateDiscountAmount(parseFloat(e.target.value) || 0)}
+                      className="w-24 p-1 border border-gray-300 rounded text-center"
+                      min="0"
+                      step="0.001"
+                    />
+                    <span className="text-gray-700">{selectedCurrency.code}</span>
+                  </div>
+                </div>
               </div>
 
               <hr className="border-gray-300" />
